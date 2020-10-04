@@ -108,7 +108,7 @@ grass_sounds[1].set_volume(0.1)
 pygame.mixer.music.load('music.wav')  # load music to game
 pygame.mixer.music.play(-1)  # count music play -1 repeat
 
-player_rect = pygame.Rect(100, 100, 16, 16) # 1-2 width-height, 3-4 area of object
+player_rect = pygame.Rect(100, 100, 6, 13) # 1-2 width-height, 3-4 area of object
 
 background_objects = [[0.25, [120,10,70,400]], [0.25, [280,30,40,400]], [0.5, [30,40,40,400]], [0.5, [130,90,100,400]], [0.5, [300,80,120,400]]]  # object in background
 
