@@ -9,11 +9,11 @@ pygame.display.set_caption('Pygame Platformer')  # name of the game
 
 WINDOW_SIZE = (1200, 800) # size of screen
 
-screen = pygame.display.set_mode(WINDOW_SIZE) # initiate the window
+screen = pygame.display.set_mode(WINDOW_SIZE, 0, 32) # initiate the window
 
-width_for_person_center, height_for_person_center = (WINDOW_SIZE[0] - 5) / 8, (WINDOW_SIZE[1] - 13) / 8  # value for center camera from our window_size
+width_for_person_center, height_for_person_center = 152, 106  # value for center camera from our window_size
 
-display = pygame.Surface((WINDOW_SIZE[0]/4, WINDOW_SIZE[1]/4)) # used as the surface for rendering, which is scaled
+display = pygame.Surface((300, 200)) # used as the surface for rendering, which is scaled
 
 moving_right = False  # change when we keydown
 moving_left = False  # change when we keydown
@@ -37,14 +37,53 @@ def load_map(path):
     return game_map
 
 
+global animation_frames
+animation_frames = {}
+
+def load_animation(path,frame_durations):
+    global animation_frames
+    animation_name = path.split('/')[-1]
+    animation_frame_data = []
+    n = 0
+    for frame in frame_durations:
+        animation_frame_id = animation_name + '_' + str(n)
+        img_loc = path + '/' + animation_frame_id + '.png'
+        # player_animations/idle/idle_0.png
+        animation_image = pygame.image.load(img_loc).convert()
+        animation_image.set_colorkey((255,255,255))
+        animation_frames[animation_frame_id] = animation_image.copy()
+        for i in range(frame):
+            animation_frame_data.append(animation_frame_id)
+        n += 1
+    return animation_frame_data
+
+
+def change_action(action_var, frame, new_value):
+    """Changing animation"""
+    if action_var != new_value:
+        action_var = new_value
+        frame = 0
+    return action_var, frame
+
+
+animation_database = {}
+
+animation_database['run'] = load_animation('player_animations/run', [7, 7])
+animation_database['idle'] = load_animation('player_animations/idle', [7, 7, 40])
+
+player_action = 'idle'
+player_frame = 0
+player_flip = False
+
+
 game_map = load_map("map")  # our map 0 air, 1 ground, 2 grass with ground
 
 # load image in pygame
 grass_img = pygame.image.load('grass.png')
 dirt_img = pygame.image.load('dirt.png')
 
-player_img = pygame.image.load('player.png')
-player_img.set_colorkey((255, 255, 255))  # circuit of image
+# player_img = pygame.image.load('player.png')
+# player_img.set_colorkey((255, 255, 255))  # circuit of image
 
 player_rect = pygame.Rect(100, 100, 5, 13) # 1-2 width-height, 3-4 area of object
 
@@ -87,6 +126,8 @@ def move(rect, movement, tiles):  # rect in our case this is the peson, movement
     return rect, collision_types
 
 
+
+
 while True: # game loop
     display.fill((146,244,255))  # clear screen by filling it with blue all environment will be here
 
@@ -94,7 +135,6 @@ while True: # game loop
     true_scroll[1] += (player_rect.y - true_scroll[1] - height_for_person_center) / 20
 
     scroll = [int(x) for x in true_scroll]
-    print(scroll[0], scroll[1])
 
     pygame.draw.rect(display, (7, 80, 75), pygame.Rect(0, 120, 300, 80))  # background
     for background_object in background_objects:  # some background object
@@ -122,21 +162,29 @@ while True: # game loop
             #     pass
             x += 1
         y += 1
+
     #  place with our person
     player_movement = [0, 0]
-
     #  move x
     if moving_right:
         player_movement[0] += 2  #
-
     if moving_left:
         player_movement[0] -= 2
-
     #  move y
     player_movement[1] += vertical_momentum
     vertical_momentum += 0.25
     if vertical_momentum > 3:
         vertical_momentum = 3
+
+    # This need to change animation when person run
+    if player_movement[0] == 0:
+        player_action, player_frame = change_action(player_action, player_frame, 'idle')
+    if player_movement[0] > 0:
+        player_flip = False
+        player_action, player_frame = change_action(player_action, player_frame, 'run')
+    if player_movement[0] < 0:
+        player_flip = True
+        player_action, player_frame = change_action(player_action, player_frame, 'run')
 
     player_rect, collisions = move(player_rect, player_movement, tile_rects)
 
@@ -146,7 +194,13 @@ while True: # game loop
     else:
         air_timer += 1  # jump timer
 
-    display.blit(player_img, (player_rect.x - scroll[0], player_rect.y - scroll[1]))  # object rendering
+    player_frame += 1
+    if player_frame >= len(animation_database[player_action]):  # this need to restart animation of our person
+        player_frame = 0
+
+    player_img_id = animation_database[player_action][player_frame]
+    player_img = animation_frames[player_img_id]  # animation when person stand on
+    display.blit(pygame.transform.flip(player_img, player_flip, False), (player_rect.x - scroll[0], player_rect.y - scroll[1]))  # object rendering .flip need for change side of run when render
 
     for event in pygame.event.get():  # event loop
         if event.type == QUIT:
