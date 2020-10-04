@@ -26,6 +26,7 @@ grass_sound_timer = 0
 
 true_scroll = [0, 0]  # scroll for camera
 
+tile_size = 16
 
 def load_map(path):
     """This func for load map from txt to matrix"""
@@ -34,7 +35,8 @@ def load_map(path):
     data = data.split('\n')
     game_map = []
     for row in data:
-        game_map.append(list(row))
+        tiles = row.split(' ')
+        game_map.append(list(tiles))
 
     return game_map
 
@@ -52,7 +54,7 @@ def load_animation(path,frame_durations):
         img_loc = path + '/' + animation_frame_id + '.png'
         # player_animations/idle/idle_0.png
         animation_image = pygame.image.load(img_loc).convert()
-        animation_image.set_colorkey((255,255,255))
+        animation_image.set_colorkey((255, 255, 255))
         animation_frames[animation_frame_id] = animation_image.copy()
         for i in range(frame):
             animation_frame_data.append(animation_frame_id)
@@ -70,7 +72,7 @@ def change_action(action_var, frame, new_value):
 
 animation_database = {}
 
-animation_database['run'] = load_animation('player_animations/run', [7, 7])
+animation_database['run'] = load_animation('player_animations/run', [4, 4, 4, 4])
 animation_database['idle'] = load_animation('player_animations/idle', [7, 7, 40])
 
 player_action = 'idle'
@@ -85,17 +87,28 @@ grass_img = pygame.image.load('grass.png')
 dirt_img = pygame.image.load('dirt.png')
 
 
+def load_tiles():
+    tiles = dict()
+    for i in range(0, 25):
+        formatted = '%02d' % i
+        tiles[formatted] = pygame.image.load('tiles/%s.png' % formatted)
+    return tiles
+
+
+loaded_tiles = load_tiles()
+
+
 jump_sound = pygame.mixer.Sound('jump.wav')  # sound to jump
 grass_sounds = [pygame.mixer.Sound('grass_0.wav'), pygame.mixer.Sound('grass_1.wav')]
 grass_sounds[0].set_volume(0.1)
 grass_sounds[1].set_volume(0.1)
-# player_img = pygame.image.load('player.png')
+# player_img = pygame.image.load('player_animations.png')
 # player_img.set_colorkey((255, 255, 255))  # circuit of image
 
 pygame.mixer.music.load('music.wav')  # load music to game
 pygame.mixer.music.play(-1)  # count music play -1 repeat
 
-player_rect = pygame.Rect(100, 100, 5, 13) # 1-2 width-height, 3-4 area of object
+player_rect = pygame.Rect(100, 100, 16, 16) # 1-2 width-height, 3-4 area of object
 
 background_objects = [[0.25, [120,10,70,400]], [0.25, [280,30,40,400]], [0.5, [30,40,40,400]], [0.5, [130,90,100,400]], [0.5, [300,80,120,400]]]  # object in background
 
@@ -164,12 +177,9 @@ while True: # game loop
     for layer in game_map:
         x = 0
         for tile in layer:
-            if tile == '1':
-                display.blit(dirt_img, (x*16 - scroll[0], y*16 - scroll[1]))  # 16 this width and height our png
-                tile_rects.append(pygame.Rect(x * 16, y * 16, 16, 16))
-            if tile == '2':
-                display.blit(grass_img, (x*16 - scroll[0], y*16 - scroll[1]))
-                tile_rects.append(pygame.Rect(x*16, y*16, 16, 16))
+            if tile != '**':
+                display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1]))  # 16 this width and height our png
+                tile_rects.append(pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size))
             # if tile != '0':
             #     # tile_rects.append(pygame.Rect(x*16, y*16, 16, 16))
             #     pass
