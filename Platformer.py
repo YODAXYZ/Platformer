@@ -1,9 +1,10 @@
-import pygame, sys
-
-clock = pygame.time.Clock() # timer whhich need for fps
-
+import pygame, sys, random
 from pygame.locals import *
+
+pygame.mixer.pre_init(44100, -16, 2, 512)  # this for predict before sound some action
 pygame.init() # initiates pygame
+
+clock = pygame.time.Clock()  # timer which need for fps
 
 pygame.display.set_caption('Pygame Platformer')  # name of the game
 
@@ -21,7 +22,8 @@ moving_left = False  # change when we keydown
 vertical_momentum = 0  # y moving increase when we jump
 air_timer = 0 # use for
 
-# scroll = [0, 0]
+grass_sound_timer = 0
+
 true_scroll = [0, 0]  # scroll for camera
 
 
@@ -82,8 +84,16 @@ game_map = load_map("map")  # our map 0 air, 1 ground, 2 grass with ground
 grass_img = pygame.image.load('grass.png')
 dirt_img = pygame.image.load('dirt.png')
 
+
+jump_sound = pygame.mixer.Sound('jump.wav')  # sound to jump
+grass_sounds = [pygame.mixer.Sound('grass_0.wav'), pygame.mixer.Sound('grass_1.wav')]
+grass_sounds[0].set_volume(0.1)
+grass_sounds[1].set_volume(0.1)
 # player_img = pygame.image.load('player.png')
 # player_img.set_colorkey((255, 255, 255))  # circuit of image
+
+pygame.mixer.music.load('music.wav')  # load music to game
+pygame.mixer.music.play(-1)  # count music play -1 repeat
 
 player_rect = pygame.Rect(100, 100, 5, 13) # 1-2 width-height, 3-4 area of object
 
@@ -130,6 +140,9 @@ def move(rect, movement, tiles):  # rect in our case this is the peson, movement
 
 while True: # game loop
     display.fill((146,244,255))  # clear screen by filling it with blue all environment will be here
+
+    if grass_sound_timer > 0:
+        grass_sound_timer -= 10
 
     true_scroll[0] += (player_rect.x - true_scroll[0] - width_for_person_center) / 20  # / 20 this effect of camera move
     true_scroll[1] += (player_rect.y - true_scroll[1] - height_for_person_center) / 20
@@ -191,6 +204,10 @@ while True: # game loop
     if collisions['bottom']:
         air_timer = 0
         vertical_momentum = 0
+        if player_movement[0] != 0:  # play_grass_sound when you moved
+            if grass_sound_timer == 0:
+                grass_sound_timer = 30
+                random.choice(grass_sounds).play()
     else:
         air_timer += 1  # jump timer
 
@@ -207,12 +224,17 @@ while True: # game loop
             pygame.quit()
             sys.exit()
         if event.type == KEYDOWN:
+            if event.key == K_1:  # off music
+                pygame.mixer.music.fadeout(1000)
+            if event.key == K_2:  # on music 
+                pygame.mixer.music.play(-1)
             if event.key == K_RIGHT:
                 moving_right = True
             if event.key == K_LEFT:
                 moving_left = True
             if event.key == K_UP:
                 if air_timer < 6:
+                    jump_sound.play()
                     vertical_momentum = -5
         if event.type == KEYUP:
             if event.key == K_RIGHT:
