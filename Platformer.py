@@ -11,6 +11,8 @@ WINDOW_SIZE = (1200, 800) # size of screen
 
 screen = pygame.display.set_mode(WINDOW_SIZE) # initiate the window
 
+width_for_person_center, height_for_person_center = (WINDOW_SIZE[0] - 5) / 8, (WINDOW_SIZE[1] - 13) / 8  # value for center camera from our window_size
+
 display = pygame.Surface((WINDOW_SIZE[0]/4, WINDOW_SIZE[1]/4)) # used as the surface for rendering, which is scaled
 
 moving_right = False  # change when we keydown
@@ -19,29 +21,34 @@ moving_left = False  # change when we keydown
 vertical_momentum = 0  # y moving increase when we jump
 air_timer = 0 # use for
 
-game_map = [['0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'],
-            ['0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'],
-            ['0','0','0','0','0','0','1','0','0','0','0','0','0','0','0','0','0','0','0'],
-            ['0','0','0','0','0','0','0','1','0','0','0','0','0','0','0','0','0','0','0'],
-            ['0','0','0','0','0','0','0','2','2','2','2','2','0','0','0','0','0','0','0'],
-            ['0','0','0','0','0','0','0','1','0','0','0','0','0','0','0','0','0','0','0'],
-            ['2','2','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','2','2'],
-            ['1','1','2','2','2','2','2','2','2','2','2','2','2','2','2','2','2','1','1'],
-            ['1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1'],
-            ['1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1'],
-            ['1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1'],
-            ['1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1'],
-            ['1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1']]  # our map 0 air, 1 ground, 2 grass with ground
+# scroll = [0, 0]
+true_scroll = [0, 0]  # scroll for camera
+
+
+def load_map(path):
+    """This func for load map from txt to matrix"""
+    with open(path + ".txt", 'r') as f:
+        data = f.read()
+    data = data.split('\n')
+    game_map = []
+    for row in data:
+        game_map.append(list(row))
+
+    return game_map
+
+
+game_map = load_map("map")  # our map 0 air, 1 ground, 2 grass with ground
 
 # load image in pygame
 grass_img = pygame.image.load('grass.png')
 dirt_img = pygame.image.load('dirt.png')
 
 player_img = pygame.image.load('player.png')
-player_img.set_colorkey((255,255, 255))  # circuit of image
+player_img.set_colorkey((255, 255, 255))  # circuit of image
 
-player_rect = pygame.Rect(100,100,5,13) # 1-2 width-height, 3-4 area of object
+player_rect = pygame.Rect(100, 100, 5, 13) # 1-2 width-height, 3-4 area of object
 
+background_objects = [[0.25, [120,10,70,400]], [0.25, [280,30,40,400]], [0.5, [30,40,40,400]], [0.5, [130,90,100,400]], [0.5, [300,80,120,400]]]  # object in background
 
 def collision_test(rect, tiles):  # use for collect object which colliderect by our person
     hit_list = []
@@ -83,16 +90,32 @@ def move(rect, movement, tiles):  # rect in our case this is the peson, movement
 while True: # game loop
     display.fill((146,244,255))  # clear screen by filling it with blue all environment will be here
 
+    true_scroll[0] += (player_rect.x - true_scroll[0] - width_for_person_center) / 20  # / 20 this effect of camera move
+    true_scroll[1] += (player_rect.y - true_scroll[1] - height_for_person_center) / 20
+
+    scroll = [int(x) for x in true_scroll]
+    print(scroll[0], scroll[1])
+
+    pygame.draw.rect(display, (7, 80, 75), pygame.Rect(0, 120, 300, 80))  # background
+    for background_object in background_objects:  # some background object
+        obj_rect = pygame.Rect(background_object[1][0] - scroll[0] * background_object[0],
+                               background_object[1][1] - scroll[1] * background_object[0], background_object[1][2],
+                               background_object[1][3])
+        if background_object[0] == 0.5:
+            pygame.draw.rect(display, (14, 222, 150), obj_rect)
+        else:
+            pygame.draw.rect(display, (9, 91, 85), obj_rect)
+
     tile_rects = []
     y = 0
     for layer in game_map:
         x = 0
         for tile in layer:
             if tile == '1':
-                display.blit(dirt_img, (x*16, y*16))  # 16 this width and height our png
+                display.blit(dirt_img, (x*16 - scroll[0], y*16 - scroll[1]))  # 16 this width and height our png
                 tile_rects.append(pygame.Rect(x * 16, y * 16, 16, 16))
             if tile == '2':
-                display.blit(grass_img, (x*16, y*16))
+                display.blit(grass_img, (x*16 - scroll[0], y*16 - scroll[1]))
                 tile_rects.append(pygame.Rect(x*16, y*16, 16, 16))
             # if tile != '0':
             #     # tile_rects.append(pygame.Rect(x*16, y*16, 16, 16))
@@ -123,7 +146,7 @@ while True: # game loop
     else:
         air_timer += 1  # jump timer
 
-    display.blit(player_img, (player_rect.x, player_rect.y))  # object rendering
+    display.blit(player_img, (player_rect.x - scroll[0], player_rect.y - scroll[1]))  # object rendering
 
     for event in pygame.event.get():  # event loop
         if event.type == QUIT:
