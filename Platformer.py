@@ -1,3 +1,5 @@
+import math
+
 import pygame, sys, random
 from pygame.locals import *
 
@@ -82,16 +84,13 @@ player_flip = False
 
 game_map = load_map("map")  # our map 0 air, 1 ground, 2 grass with ground
 
-# load image in pygame
-grass_img = pygame.image.load('grass.png')
-dirt_img = pygame.image.load('dirt.png')
-
 
 def load_tiles():
     tiles = dict()
-    for i in range(0, 25):
+    for i in range(0, 27):
         formatted = '%02d' % i
         tiles[formatted] = pygame.image.load('tiles/%s.png' % formatted)
+
     return tiles
 
 
@@ -108,7 +107,10 @@ grass_sounds[1].set_volume(0.1)
 pygame.mixer.music.load('music.wav')  # load music to game
 pygame.mixer.music.play(-1)  # count music play -1 repeat
 
-player_rect = pygame.Rect(100, 100, 6, 13) # 1-2 width-height, 3-4 area of object
+spawn_x = 100
+spawn_y = 100
+
+player_rect = pygame.Rect(spawn_x, spawn_y, 6, 13) # 1-2 width-height, 3-4 area of object
 
 background_objects = [[0.25, [120,10,70,400]], [0.25, [280,30,40,400]], [0.5, [30,40,40,400]], [0.5, [130,90,100,400]], [0.5, [300,80,120,400]]]  # object in background
 
@@ -119,10 +121,18 @@ def collision_test(rect, tiles):  # use for collect object which colliderect by 
             hit_list.append(tile)
     return hit_list
 
+def collide_spikes(spikes):
+    for spike in spikes:
+        if player_rect.colliderect(spike): # touch person with object by area 3-4
+            player_rect.x = spawn_x
+            player_rect.y = spawn_y
 
-def move(rect, movement, tiles):  # rect in our case this is the peson, movement this his move, title it's list of map object
+
+def move(rect, movement, tiles, spikes):  # rect in our case this is the peson, movement this his move, title it's list of map object
     """This func for oppotunity to move (this significant that when we move we don't have hurdle )"""
     collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False} # type of touch element
+
+    collide_spikes(spikes)
 
     rect.x += movement[0] # player_movement
     hit_list = collision_test(rect, tiles) # list of our tile(object)
@@ -173,11 +183,16 @@ while True: # game loop
             pygame.draw.rect(display, (9, 91, 85), obj_rect)
 
     tile_rects = []
+    spikes = []
     y = 0
     for layer in game_map:
         x = 0
         for tile in layer:
-            if tile != '**':
+            if tile == '26':
+                dist = math.fabs((player_rect.x - x * tile_size) ** 2 + (player_rect.y - y * tile_size) ** 2)
+                display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1] + (dist / tile_size)))
+                spikes.append(pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size))
+            elif tile != '**':
                 display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1]))  # 16 this width and height our png
                 tile_rects.append(pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size))
             # if tile != '0':
@@ -209,7 +224,7 @@ while True: # game loop
         player_flip = True
         player_action, player_frame = change_action(player_action, player_frame, 'run')
 
-    player_rect, collisions = move(player_rect, player_movement, tile_rects)
+    player_rect, collisions = move(player_rect, player_movement, tile_rects, spikes)
 
     if collisions['bottom']:
         air_timer = 0
