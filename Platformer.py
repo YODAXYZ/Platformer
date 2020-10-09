@@ -1,6 +1,7 @@
 import math
 
 import pygame, sys, random
+import pygame_menu
 from pygame.locals import *
 
 pygame.mixer.pre_init(44100, -16, 2, 512)  # this for predict before sound some action
@@ -114,12 +115,14 @@ player_rect = pygame.Rect(spawn_x, spawn_y, 6, 13) # 1-2 width-height, 3-4 area 
 
 background_objects = [[0.25, [120,10,70,400]], [0.25, [280,30,40,400]], [0.5, [30,40,40,400]], [0.5, [130,90,100,400]], [0.5, [300,80,120,400]]]  # object in background
 
+
 def collision_test(rect, tiles):  # use for collect object which colliderect by our person
     hit_list = []
     for tile in tiles:
         if rect.colliderect(tile): # touch person with object by area 3-4
             hit_list.append(tile)
     return hit_list
+
 
 def collide_spikes(spikes):
     for spike in spikes:
@@ -159,114 +162,140 @@ def move(rect, movement, tiles, spikes):  # rect in our case this is the peson, 
     return rect, collision_types
 
 
+def game(grass_sound_timer, player_rect, moving_right, moving_left, vertical_momentum, player_action, player_frame, air_timer, player_flip, status=False):
+    if status:
+        while True: # game loop
+            display.fill((146,244,255))  # clear screen by filling it with blue all environment will be here
+
+            if grass_sound_timer > 0:
+                grass_sound_timer -= 10
+
+            true_scroll[0] += (player_rect.x - true_scroll[0] - width_for_person_center) / 20  # / 20 this effect of camera move
+            true_scroll[1] += (player_rect.y - true_scroll[1] - height_for_person_center) / 20
+
+            scroll = [int(x) for x in true_scroll]
+
+            pygame.draw.rect(display, (7, 80, 75), pygame.Rect(0, 120, 300, 80))  # background
+            for background_object in background_objects:  # some background object
+                obj_rect = pygame.Rect(background_object[1][0] - scroll[0] * background_object[0],
+                                       background_object[1][1] - scroll[1] * background_object[0], background_object[1][2],
+                                       background_object[1][3])
+                if background_object[0] == 0.5:
+                    pygame.draw.rect(display, (14, 222, 150), obj_rect)
+                else:
+                    pygame.draw.rect(display, (9, 91, 85), obj_rect)
+
+            tile_rects = []
+            spikes = []
+            y = 0
+            for layer in game_map:
+                x = 0
+                for tile in layer:
+                    if tile == '26' or tile == "37":
+                        # dist = math.fabs((player_rect.x - x * tile_size) ** 2 + (player_rect.y - y * tile_size) ** 2)
+                        # display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1] + (dist)))
+                        display.blit(loaded_tiles[tile],
+                                     (x * tile_size - scroll[0], y * tile_size - scroll[1]))  # 16 this width and height our png
+                        spikes.append(pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size))
+                    elif tile != '**':
+                        display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1]))  # 16 this width and height our png
+                        tile_rects.append(pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size))
+                    # if tile != '0':
+                    #     # tile_rects.append(pygame.Rect(x*16, y*16, 16, 16))
+                    #     pass
+                    x += 1
+                y += 1
+
+            #  place with our person
+            player_movement = [0, 0]
+            #  move x
+            if moving_right:
+                player_movement[0] += 2  #
+            if moving_left:
+                player_movement[0] -= 2
+            #  move y
+            player_movement[1] += vertical_momentum
+            vertical_momentum += 0.25
+            if vertical_momentum > 3:
+                vertical_momentum = 3
+
+            # This need to change animation when person run
+            if player_movement[0] == 0:
+                player_action, player_frame = change_action(player_action, player_frame, 'idle')
+            if player_movement[0] > 0:
+                player_flip = False
+                player_action, player_frame = change_action(player_action, player_frame, 'run')
+            if player_movement[0] < 0:
+                player_flip = True
+                player_action, player_frame = change_action(player_action, player_frame, 'run')
+
+            player_rect, collisions = move(player_rect, player_movement, tile_rects, spikes)
+
+            if collisions['bottom']:
+                air_timer = 0
+                vertical_momentum = 0
+                if player_movement[0] != 0:  # play_grass_sound when you moved
+                    if grass_sound_timer == 0:
+                        grass_sound_timer = 30
+                        random.choice(grass_sounds).play()
+            else:
+                air_timer += 1  # jump timer
+
+            player_frame += 1
+            if player_frame >= len(animation_database[player_action]):  # this need to restart animation of our person
+                player_frame = 0
+
+            player_img_id = animation_database[player_action][player_frame]
+            player_img = animation_frames[player_img_id]  # animation when person stand on
+            display.blit(pygame.transform.flip(player_img, player_flip, False), (player_rect.x - scroll[0], player_rect.y - scroll[1]))  # object rendering .flip need for change side of run when render
+
+            for event in pygame.event.get():  # event loop
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == KEYDOWN:
+                    if event.key == K_ESCAPE:
+                        menu = pygame_menu.Menu(800, 1200, 'Pause',
+                                               theme=pygame_menu.themes.THEME_DARK)
+
+                        menu.add_button('Continue', start_game)
+                        menu.add_button('Quit', pygame_menu.events.EXIT)
+                        menu.mainloop(screen)
+
+                    if event.key == K_1:  # off music
+                        pygame.mixer.music.fadeout(1000)
+                    if event.key == K_2:  # on music
+                        pygame.mixer.music.play(-1)
+                    if event.key == K_RIGHT:
+                        moving_right = True
+                    if event.key == K_LEFT:
+                        moving_left = True
+                    if event.key == K_UP:
+                        if air_timer < 6:
+                            jump_sound.play()
+                            vertical_momentum = -5
+                if event.type == KEYUP:
+                    if event.key == K_RIGHT:
+                        moving_right = False
+                    if event.key == K_LEFT:
+                        moving_left = False
+
+            screen.blit(pygame.transform.scale(display, WINDOW_SIZE), (0, 0))  # rendering game session
+            pygame.display.update()  # update display
+            clock.tick(60)  # maintain 60fps
+
+def start_game():
+    game(grass_sound_timer, player_rect, moving_right, moving_left, vertical_momentum, player_action, player_frame,
+         air_timer, player_flip, True)
 
 
-while True: # game loop
-    display.fill((146,244,255))  # clear screen by filling it with blue all environment will be here
 
-    if grass_sound_timer > 0:
-        grass_sound_timer -= 10
+menu = pygame_menu.Menu(800, 1200, 'Welcome',
+                        theme=pygame_menu.themes.THEME_DARK)
 
-    true_scroll[0] += (player_rect.x - true_scroll[0] - width_for_person_center) / 20  # / 20 this effect of camera move
-    true_scroll[1] += (player_rect.y - true_scroll[1] - height_for_person_center) / 20
+menu.add_button('Play', start_game)
+menu.add_button('Quit', pygame_menu.events.EXIT)
+menu.mainloop(screen)
 
-    scroll = [int(x) for x in true_scroll]
 
-    pygame.draw.rect(display, (7, 80, 75), pygame.Rect(0, 120, 300, 80))  # background
-    for background_object in background_objects:  # some background object
-        obj_rect = pygame.Rect(background_object[1][0] - scroll[0] * background_object[0],
-                               background_object[1][1] - scroll[1] * background_object[0], background_object[1][2],
-                               background_object[1][3])
-        if background_object[0] == 0.5:
-            pygame.draw.rect(display, (14, 222, 150), obj_rect)
-        else:
-            pygame.draw.rect(display, (9, 91, 85), obj_rect)
 
-    tile_rects = []
-    spikes = []
-    y = 0
-    for layer in game_map:
-        x = 0
-        for tile in layer:
-            if tile == '26':
-                dist = math.fabs((player_rect.x - x * tile_size) ** 2 + (player_rect.y - y * tile_size) ** 2)
-                display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1] + (dist / tile_size)))
-                spikes.append(pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size))
-            elif tile != '**':
-                display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1]))  # 16 this width and height our png
-                tile_rects.append(pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size))
-            # if tile != '0':
-            #     # tile_rects.append(pygame.Rect(x*16, y*16, 16, 16))
-            #     pass
-            x += 1
-        y += 1
-
-    #  place with our person
-    player_movement = [0, 0]
-    #  move x
-    if moving_right:
-        player_movement[0] += 2  #
-    if moving_left:
-        player_movement[0] -= 2
-    #  move y
-    player_movement[1] += vertical_momentum
-    vertical_momentum += 0.25
-    if vertical_momentum > 3:
-        vertical_momentum = 3
-
-    # This need to change animation when person run
-    if player_movement[0] == 0:
-        player_action, player_frame = change_action(player_action, player_frame, 'idle')
-    if player_movement[0] > 0:
-        player_flip = False
-        player_action, player_frame = change_action(player_action, player_frame, 'run')
-    if player_movement[0] < 0:
-        player_flip = True
-        player_action, player_frame = change_action(player_action, player_frame, 'run')
-
-    player_rect, collisions = move(player_rect, player_movement, tile_rects, spikes)
-
-    if collisions['bottom']:
-        air_timer = 0
-        vertical_momentum = 0
-        if player_movement[0] != 0:  # play_grass_sound when you moved
-            if grass_sound_timer == 0:
-                grass_sound_timer = 30
-                random.choice(grass_sounds).play()
-    else:
-        air_timer += 1  # jump timer
-
-    player_frame += 1
-    if player_frame >= len(animation_database[player_action]):  # this need to restart animation of our person
-        player_frame = 0
-
-    player_img_id = animation_database[player_action][player_frame]
-    player_img = animation_frames[player_img_id]  # animation when person stand on
-    display.blit(pygame.transform.flip(player_img, player_flip, False), (player_rect.x - scroll[0], player_rect.y - scroll[1]))  # object rendering .flip need for change side of run when render
-
-    for event in pygame.event.get():  # event loop
-        if event.type == QUIT:
-            pygame.quit()
-            sys.exit()
-        if event.type == KEYDOWN:
-            if event.key == K_1:  # off music
-                pygame.mixer.music.fadeout(1000)
-            if event.key == K_2:  # on music 
-                pygame.mixer.music.play(-1)
-            if event.key == K_RIGHT:
-                moving_right = True
-            if event.key == K_LEFT:
-                moving_left = True
-            if event.key == K_UP:
-                if air_timer < 6:
-                    jump_sound.play()
-                    vertical_momentum = -5
-        if event.type == KEYUP:
-            if event.key == K_RIGHT:
-                moving_right = False
-            if event.key == K_LEFT:
-                moving_left = False
-        
-    screen.blit(pygame.transform.scale(display, WINDOW_SIZE), (0, 0))  # rendering game session
-    pygame.display.update()  # update display
-    clock.tick(60)  # maintain 60fps
