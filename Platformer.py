@@ -1,4 +1,5 @@
 import math
+import os
 
 import pygame, sys, random
 import pygame_menu
@@ -12,6 +13,8 @@ clock = pygame.time.Clock()  # timer which need for fps
 pygame.display.set_caption('Pygame Platformer')  # name of the game
 
 WINDOW_SIZE = (1200, 800) # size of screen
+
+curr_path = os.path.dirname(__file__)
 
 screen = pygame.display.set_mode(WINDOW_SIZE, 0, 32) # initiate the window
 
@@ -31,9 +34,16 @@ true_scroll = [0, 0]  # scroll for camera
 
 tile_size = 16
 
+end_flag_zone = [
+    pygame.Rect(62 * tile_size, 4 * tile_size, tile_size, tile_size),
+    pygame.Rect(62 * tile_size, 2 * tile_size, tile_size, tile_size),
+    pygame.Rect(61 * tile_size, 3 * tile_size, tile_size, tile_size),
+    pygame.Rect(63 * tile_size, 3 * tile_size, tile_size, tile_size),
+]
+
 def load_map(path):
     """This func for load map from txt to matrix"""
-    with open(path + ".txt", 'r') as f:
+    with open(os.path.join(curr_path, path + ".txt"), 'r') as f:
         data = f.read()
     data = data.split('\n')
     game_map = []
@@ -56,7 +66,7 @@ def load_animation(path,frame_durations):
         animation_frame_id = animation_name + '_' + str(n)
         img_loc = path + '/' + animation_frame_id + '.png'
         # player_animations/idle/idle_0.png
-        animation_image = pygame.image.load(img_loc).convert()
+        animation_image = pygame.image.load(os.path.join(curr_path, img_loc)).convert()
         animation_image.set_colorkey((255, 255, 255))
         animation_frames[animation_frame_id] = animation_image.copy()
         for i in range(frame):
@@ -88,9 +98,9 @@ game_map = load_map("map")  # our map 0 air, 1 ground, 2 grass with ground
 
 def load_tiles():
     tiles = dict()
-    for i in range(0, 27):
+    for i in range(0, 29):
         formatted = '%02d' % i
-        tiles[formatted] = pygame.image.load('tiles/%s.png' % formatted)
+        tiles[formatted] = pygame.image.load(os.path.join(curr_path, 'tiles/%s.png' % formatted))
 
     return tiles
 
@@ -98,14 +108,14 @@ def load_tiles():
 loaded_tiles = load_tiles()
 
 
-jump_sound = pygame.mixer.Sound('jump.wav')  # sound to jump
-grass_sounds = [pygame.mixer.Sound('grass_0.wav'), pygame.mixer.Sound('grass_1.wav')]
+jump_sound = pygame.mixer.Sound(os.path.join(curr_path, 'jump.wav'))  # sound to jump
+grass_sounds = [pygame.mixer.Sound(os.path.join(curr_path, 'grass_0.wav')), pygame.mixer.Sound(os.path.join(curr_path, 'grass_1.wav'))]
 grass_sounds[0].set_volume(0.1)
 grass_sounds[1].set_volume(0.1)
 # player_img = pygame.image.load('player_animations.png')
 # player_img.set_colorkey((255, 255, 255))  # circuit of image
 
-pygame.mixer.music.load('music.wav')  # load music to game
+pygame.mixer.music.load(os.path.join(curr_path, 'music.wav'))  # load music to game
 pygame.mixer.music.play(-1)  # count music play -1 repeat
 
 spawn_x = 100
@@ -115,14 +125,20 @@ player_rect = pygame.Rect(spawn_x, spawn_y, 6, 13) # 1-2 width-height, 3-4 area 
 
 background_objects = [[0.25, [120,10,70,400]], [0.25, [280,30,40,400]], [0.5, [30,40,40,400]], [0.5, [130,90,100,400]], [0.5, [300,80,120,400]]]  # object in background
 
-
 def collision_test(rect, tiles):  # use for collect object which colliderect by our person
     hit_list = []
     for tile in tiles:
+        #if tile.x != (62 * tile_size) and tile.y != (2 * tile_size):
         if rect.colliderect(tile): # touch person with object by area 3-4
             hit_list.append(tile)
     return hit_list
 
+def collide_flag():
+    for flag_zone_item in end_flag_zone:
+        if player_rect.colliderect(flag_zone_item): # touch person with object by area 3-4
+            player_rect.x = spawn_x
+            player_rect.y = spawn_y
+            create_win_menu()
 
 def collide_spikes(spikes):
     for spike in spikes:
@@ -136,6 +152,9 @@ def move(rect, movement, tiles, spikes):  # rect in our case this is the peson, 
     collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False} # type of touch element
 
     collide_spikes(spikes)
+
+    collide_flag()
+
 
     rect.x += movement[0] # player_movement
     hit_list = collision_test(rect, tiles) # list of our tile(object)
@@ -191,7 +210,7 @@ def game(grass_sound_timer, player_rect, moving_right, moving_left, vertical_mom
             for layer in game_map:
                 x = 0
                 for tile in layer:
-                    if tile == '26' or tile == "37":
+                    if tile == '26' or tile == "28":
                         # dist = math.fabs((player_rect.x - x * tile_size) ** 2 + (player_rect.y - y * tile_size) ** 2)
                         # display.blit(loaded_tiles[tile], (x * tile_size - scroll[0], y * tile_size - scroll[1] + (dist)))
                         display.blit(loaded_tiles[tile],
@@ -288,6 +307,13 @@ def start_game():
     game(grass_sound_timer, player_rect, moving_right, moving_left, vertical_momentum, player_action, player_frame,
          air_timer, player_flip, True)
 
+def create_win_menu():
+    menu = pygame_menu.Menu(800, 1200, 'You won',
+                            theme=pygame_menu.themes.THEME_DARK)
+
+    menu.add_button('Play again', start_game)
+    menu.add_button('Quit', pygame_menu.events.EXIT)
+    menu.mainloop(screen)
 
 
 menu = pygame_menu.Menu(800, 1200, 'Welcome',
