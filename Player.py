@@ -10,7 +10,7 @@ PLAYER_RECT_HEIGHT = 13
 
 
 class Player:
-    def __init__(self, game, x=Settings.SPAWN_X, y=Settings.SPAWN_Y, jump_sound_path="jump.wav", grass_sound_pathes=["grass_0.wav", "grass_1.wav"]):
+    def __init__(self, game, x=Settings.SPAWN_X, y=Settings.SPAWN_Y, jump_sound_path="sounds/jump.wav", grass_sound_pathes=["sounds/grass_0.wav", "sounds/grass_1.wav"]):
 
         self.__rect = pygame.Rect(x, y, PLAYER_RECT_WIDTH, PLAYER_RECT_HEIGHT)
 
@@ -180,6 +180,7 @@ class Player:
         if collisions['bottom']:
             self.__air_timer = 0
             self.__vertical_momentum = 0
+            self.__grass_sound_timer = 0
             if player_movement[0] != 0:  # play_grass_sound when you moved
                 if self.__grass_sound_timer == 0:
                     self.__grass_sound_timer = 30

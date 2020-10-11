@@ -8,9 +8,10 @@ import Settings
 from Player import Player
 from pygame.locals import *
 
+
 class Game:
 
-    def __init__(self, map_path="map", music_path="music.wav"):
+    def __init__(self, map_path="maps/map", music_path="sounds/music.wav"):
         pygame.mixer.pre_init(44100, -16, 2, 512)
         pygame.mixer.init()
 
@@ -168,7 +169,7 @@ class Game:
                     sys.exit()
                 if event.type == KEYDOWN:
                     if event.key == K_ESCAPE:
-                        menu = pygame_menu.Menu(Settings.WINDOW_SIZE[0], Settings.WINDOW_SIZE[1], 'Pause', theme=pygame_menu.themes.THEME_DARK)
+                        menu = pygame_menu.Menu(Settings.WINDOW_SIZE[1], Settings.WINDOW_SIZE[0], 'Pause', theme=pygame_menu.themes.THEME_DARK)
 
                         menu.add_button('Continue', self.__start_game)
                         menu.add_button('Quit', pygame_menu.events.EXIT)
